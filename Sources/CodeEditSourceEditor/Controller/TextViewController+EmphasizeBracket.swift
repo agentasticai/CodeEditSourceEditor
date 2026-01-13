@@ -86,6 +86,13 @@ extension TextViewController {
     ///   - reverse: Set to `true` to walk backwards from `from`.
     /// - Returns: The index of the found closing pair, if any.
     internal func findClosingPair(_ close: String, _ open: String, from: Int, limit: Int, reverse: Bool) -> Int? {
+        // Guard against invalid range parameters that could cause integer underflow
+        if reverse {
+            guard from >= limit else { return nil }
+        } else {
+            guard limit >= from else { return nil }
+        }
+
         // Walk the text, counting each close. When we find an open that makes closeCount < 0, return that index.
         var options: NSString.EnumerationOptions = .byCaretPositions
         if reverse {

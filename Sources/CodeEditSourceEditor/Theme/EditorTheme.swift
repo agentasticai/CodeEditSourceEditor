@@ -7,6 +7,24 @@
 
 import SwiftUI
 
+/// Compares two NSColors by their RGBA component values rather than by reference.
+/// This is necessary because NSColor's default Equatable compares by reference,
+/// which causes issues when comparing theme colors that may be recreated with the same values.
+private func colorsAreEqual(_ lhs: NSColor, _ rhs: NSColor) -> Bool {
+    // Convert both colors to the same color space for comparison
+    guard let lhsRGB = lhs.usingColorSpace(.sRGB),
+          let rhsRGB = rhs.usingColorSpace(.sRGB) else {
+        // Fallback to comparing hex strings if color space conversion fails
+        return lhs.hexString == rhs.hexString
+    }
+    // Compare with a small tolerance for floating point differences
+    let tolerance: CGFloat = 0.001
+    return abs(lhsRGB.redComponent - rhsRGB.redComponent) < tolerance &&
+           abs(lhsRGB.greenComponent - rhsRGB.greenComponent) < tolerance &&
+           abs(lhsRGB.blueComponent - rhsRGB.blueComponent) < tolerance &&
+           abs(lhsRGB.alphaComponent - rhsRGB.alphaComponent) < tolerance
+}
+
 /// A collection of attributes used for syntax highlighting and other colors for the editor.
 ///
 /// Attributes of a theme that do not apply to text (background, line highlight) are a single `NSColor` for simplicity.
@@ -22,6 +40,11 @@ public struct EditorTheme: Equatable {
             self.color = color
             self.bold = bold
             self.italic = italic
+        }
+
+        /// Custom Equatable that compares colors by component values, not by reference.
+        public static func == (lhs: Attribute, rhs: Attribute) -> Bool {
+            colorsAreEqual(lhs.color, rhs.color) && lhs.bold == rhs.bold && lhs.italic == rhs.italic
         }
     }
 
@@ -127,5 +150,26 @@ public struct EditorTheme: Equatable {
         }
 
         return font
+    }
+
+    /// Custom Equatable that compares colors by component values, not by reference.
+    /// This prevents unnecessary theme updates when colors are recreated with the same values.
+    public static func == (lhs: EditorTheme, rhs: EditorTheme) -> Bool {
+        lhs.text == rhs.text &&
+        colorsAreEqual(lhs.insertionPoint, rhs.insertionPoint) &&
+        lhs.invisibles == rhs.invisibles &&
+        colorsAreEqual(lhs.background, rhs.background) &&
+        colorsAreEqual(lhs.lineHighlight, rhs.lineHighlight) &&
+        colorsAreEqual(lhs.selection, rhs.selection) &&
+        lhs.keywords == rhs.keywords &&
+        lhs.commands == rhs.commands &&
+        lhs.types == rhs.types &&
+        lhs.attributes == rhs.attributes &&
+        lhs.variables == rhs.variables &&
+        lhs.values == rhs.values &&
+        lhs.numbers == rhs.numbers &&
+        lhs.strings == rhs.strings &&
+        lhs.characters == rhs.characters &&
+        lhs.comments == rhs.comments
     }
 }

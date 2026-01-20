@@ -21,6 +21,12 @@ class VisibleRangeProvider {
     private weak var minimapView: MinimapView?
     weak var delegate: VisibleRangeProviderDelegate?
 
+    /// Extra vertical padding to highlight ahead of the viewport during fast scrolls.
+    private var highlightPrefetchPadding: CGFloat {
+        guard let textView else { return 0 }
+        return max(textView.layoutManager.verticalLayoutPadding, textView.visibleRect.height)
+    }
+
     var documentRange: NSRange {
         textView?.documentRange ?? .notFound
     }
@@ -60,15 +66,33 @@ class VisibleRangeProvider {
 
     /// Updates the view to highlight newly visible text when the textview is scrolled or bounds change.
     @objc func visibleTextChanged() {
-        guard let textViewVisibleRange = textView?.visibleTextRange else {
+        guard let textViewVisibleRange = paddedVisibleTextRange() else {
             return
         }
         var visibleSet = IndexSet(integersIn: textViewVisibleRange)
         if !(minimapView?.isHidden ?? true), let minimapVisibleRange = minimapView?.visibleTextRange {
             visibleSet.formUnion(IndexSet(integersIn: minimapVisibleRange))
         }
+        guard visibleSet != self.visibleSet else { return }
         self.visibleSet = visibleSet
         delegate?.visibleSetDidUpdate(visibleSet)
+    }
+
+    private func paddedVisibleTextRange() -> NSRange? {
+        guard let textView else { return nil }
+        let padding = highlightPrefetchPadding
+        let visibleRect = textView.visibleRect
+        let paddedRect = visibleRect.insetBy(dx: 0, dy: -padding)
+        let minY = max(paddedRect.minY, 0)
+        let maxY = min(paddedRect.maxY, textView.layoutManager.estimatedHeight())
+        guard let minYLine = textView.layoutManager.textLineForPosition(minY),
+              let maxYLine = textView.layoutManager.textLineForPosition(maxY) else {
+            return nil
+        }
+        return NSRange(
+            location: minYLine.range.location,
+            length: (maxYLine.range.location - minYLine.range.location) + maxYLine.range.length
+        )
     }
 
     deinit {

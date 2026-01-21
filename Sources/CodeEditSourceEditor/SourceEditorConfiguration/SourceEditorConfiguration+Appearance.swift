@@ -137,10 +137,10 @@ extension SourceEditorConfiguration {
 
         private func updateControllerNewTheme(controller: TextViewController) {
             controller.textView.layoutManager.setNeedsLayout()
-            controller.textView.textStorage.setAttributes(
-                controller.attributesFor(nil),
-                range: NSRange(location: 0, length: controller.textView.textStorage.length)
-            )
+            // Note: We intentionally do NOT clear all attributes here.
+            // The highlighter.invalidate() call handles re-applying highlights with the new theme.
+            // Clearing attributes caused a visible "flash" during scroll when configuration
+            // comparison falsely detected a theme change due to recreated NSColor objects.
             controller.textView.selectionManager.selectionBackgroundColor = theme.selection
             controller.textView.selectionManager.selectedLineBackgroundColor = getThemeBackground(
                 systemAppearance: controller.systemAppearance
